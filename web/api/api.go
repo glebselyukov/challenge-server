@@ -3,32 +3,30 @@ package api
 import (
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"log"
 	"strconv"
 	"unsafe"
 
 	"github.com/buaazp/fasthttprouter"
+	"github.com/json-iterator/go"
 	"github.com/valyala/fasthttp"
 
 	"github.com/prospik/challenge-server/internal/app/challenge/files"
 )
 
 type HashResponse struct {
-	// Iterations *int64  `json:"iterations"`
 	Result *string `json:"result"`
 	Error  error   `json:"error,omitempty"`
 }
 
 var (
-	strContentType     = []byte("Content-Type")
 	strApplicationJSON = []byte("application/json")
 )
 
 func New(port int) {
 	router := fasthttprouter.New()
-	router.GET("/values", values)
+	router.GET("/api/values", values)
 
 	p := fmt.Sprintf(":%v", port)
 	log.Fatal(fasthttp.ListenAndServe(p, router.Handler))
@@ -38,21 +36,25 @@ func b2s(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
 }
 
-func doJSONWrite(ctx *fasthttp.RequestCtx, code int, obj interface{}) {
-	ctx.Response.Header.SetCanonical(strContentType, strApplicationJSON)
+func doJSONWrite(ctx *fasthttp.RequestCtx, code int, response interface{}) {
+	ctx.Response.Header.SetContentTypeBytes(strApplicationJSON)
 	ctx.Response.SetStatusCode(code)
-	if err := json.NewEncoder(ctx).Encode(obj); err != nil {
-		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
+	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+	if bytes, err := json.Marshal(response); err == nil {
+		ctx.SetBody(bytes)
+		return
 	}
+	ctx.Error("Error", fasthttp.StatusInternalServerError)
+
 }
 
 func values(ctx *fasthttp.RequestCtx) {
 	response := &HashResponse{}
 	n := ctx.QueryArgs().Peek("n")
 
-	var iterations int64
+	var iterations int
 	if len(n) > 0 {
-		iterationsParse, err := strconv.ParseInt(b2s(n), 10, 64)
+		iterationsParse, err := strconv.Atoi(b2s(n))
 		if err != nil {
 			response.Error = err
 			doJSONWrite(ctx, 200, response)
@@ -61,19 +63,20 @@ func values(ctx *fasthttp.RequestCtx) {
 		iterations = iterationsParse
 	}
 
-	// response.Iterations = &iterations
-
 	bytes, err := files.BytesFromData()
 	if err != nil {
 		panic(err)
 	}
 
 	sha := sha256.Sum256(bytes)
-	for i := 1; i < int(iterations); i++ {
+	for i := 1; i < iterations; i++ {
 		sha = sha256.Sum256(sha[:])
 	}
 
-	result := base64.URLEncoding.EncodeToString(sha[:])
+	base := base64.URLEncoding
+	buf := make([]byte, base.EncodedLen(len(sha[:])))
+	base.Encode(buf, bytes)
+	result := b2s(buf)
 	response.Result = &result
 
 	doJSONWrite(ctx, 200, response)
