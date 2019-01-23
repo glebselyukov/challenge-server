@@ -1,4 +1,4 @@
-module benchmark
+module github.com/prospik/challenge-server
 
 require (
 	github.com/buaazp/fasthttprouter v0.1.1

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"math/rand"
 
-	"benchmark/internal/pkg/letters"
-	"benchmark/internal/pkg/sizes"
+	"github.com/prospik/challenge-server/internal/pkg/letters"
+	"github.com/prospik/challenge-server/internal/pkg/sizes"
 )
 
 func RandASCIIBytes(n sizes.ByteSize) ([]byte, error) {

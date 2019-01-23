@@ -4,9 +4,9 @@ import (
 	"os"
 	"strings"
 
-	"benchmark/internal/app/challenge/random"
-	"benchmark/internal/pkg/letters"
-	"benchmark/internal/pkg/sizes"
+	"github.com/prospik/challenge-server/internal/app/challenge/random"
+	"github.com/prospik/challenge-server/internal/pkg/letters"
+	"github.com/prospik/challenge-server/internal/pkg/sizes"
 )
 
 func CreateDumpData(assets, file string) {
