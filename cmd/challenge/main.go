@@ -5,35 +5,17 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"flag"
-	"fmt"
 	"log"
-	"math/rand"
 	"os"
 	"strconv"
-	"strings"
 	"unsafe"
+
+	"benchmark/internal/app/challenge/files"
+	"benchmark/internal/pkg/letters"
+	"benchmark/internal/pkg/sizes"
 
 	"github.com/buaazp/fasthttprouter"
 	"github.com/valyala/fasthttp"
-)
-
-type ByteSize int
-
-const (
-	_           = iota
-	KB ByteSize = 1 << (10 * iota)
-	MB
-	GB
-	TB
-	PB
-)
-
-const (
-	letterBytes           = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	defaultAssetsPathName = "assets"
-	defaultFileName       = "data"
-	defaultFileSize       = KB * 64
-	maximumRange          = GB
 )
 
 var (
@@ -52,34 +34,6 @@ type HashResponse struct {
 
 func b2s(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
-}
-
-func fileExists(name string) bool {
-	if _, err := os.Stat(name); err != nil {
-		if os.IsNotExist(err) {
-			return false
-		}
-	}
-	return true
-}
-
-func randomASCIIBytes(n ByteSize) ([]byte, error) {
-	if n > maximumRange {
-		return nil, fmt.Errorf("out of range, maximum range: %v\n", maximumRange)
-	}
-	output := make([]byte, n, n)
-	randomness := make([]byte, n, n)
-	_, err := rand.Read(randomness)
-	if err != nil {
-		return nil, err
-	}
-	l := len(letterBytes)
-	for pos := range output {
-		random := uint8(randomness[pos])
-		randomPos := random % uint8(l)
-		output[pos] = letterBytes[randomPos]
-	}
-	return output, nil
 }
 
 func doJSONWrite(ctx *fasthttp.RequestCtx, code int, obj interface{}) {
@@ -112,7 +66,7 @@ func values(ctx *fasthttp.RequestCtx) {
 		panic(err)
 	}
 
-	bytes := make([]byte, defaultFileSize, defaultFileSize)
+	bytes := make([]byte, sizes.DefaultFileSize, sizes.DefaultFileSize)
 	_, err = f.Read(bytes)
 	if err != nil {
 		panic(err)
@@ -131,34 +85,9 @@ func values(ctx *fasthttp.RequestCtx) {
 	doJSONWrite(ctx, 200, response)
 }
 
-func createDumpData() {
-	if !fileExists(assetsPath) {
-		err := os.MkdirAll(assetsPath, os.ModePerm)
-		if err != nil {
-			panic("can't create dirs")
-		}
-	}
-
-	path = strings.Join([]string{assetsPath, fileName}, "/")
-	if !fileExists(path) {
-		f, err := os.Create(path)
-		if err != nil {
-			panic("can't create file")
-		}
-
-		defer f.Close()
-
-		randomBytes, err := randomASCIIBytes(defaultFileSize)
-		_, err = f.Write(randomBytes)
-		if err != nil {
-			panic("can't create file")
-		}
-	}
-}
-
 func main() {
-	flag.StringVar(&assetsPath, "path", defaultAssetsPathName, "")
-	flag.StringVar(&fileName, "file", defaultFileName, "")
+	flag.StringVar(&assetsPath, "path", letters.DefaultAssetsPathName, "")
+	flag.StringVar(&fileName, "file", letters.DefaultFileName, "")
 	flag.Parse()
 
 	if env, isExist := os.LookupEnv("ASSETS_PATH_NAME"); isExist {
@@ -169,7 +98,7 @@ func main() {
 		fileName = env
 	}
 
-	go createDumpData()
+	go files.CreateDumpData(assetsPath, fileName)
 
 	router := fasthttprouter.New()
 	router.GET("/values", values)
