@@ -75,7 +75,7 @@ func values(ctx *fasthttp.RequestCtx) {
 
 	base := base64.URLEncoding
 	buf := make([]byte, base.EncodedLen(len(sha[:])))
-	base.Encode(buf, bytes)
+	base.Encode(buf, sha[:])
 	result := b2s(buf)
 	response.Result = &result
 
