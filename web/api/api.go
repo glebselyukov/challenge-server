@@ -1,35 +1,36 @@
 package api
 
 import (
-	"crypto/sha256"
 	"encoding/base64"
-	"fmt"
-	"log"
 	"strconv"
 	"unsafe"
 
-	"github.com/buaazp/fasthttprouter"
 	"github.com/json-iterator/go"
+	"github.com/minio/sha256-simd"
 	"github.com/valyala/fasthttp"
 
 	"github.com/prospik/challenge-server/internal/app/challenge/files"
 )
 
-type HashResponse struct {
+type hashResponse struct {
 	Result *string `json:"result"`
 	Error  error   `json:"error,omitempty"`
 }
 
-var (
-	strApplicationJSON = []byte("application/json")
-)
-
 func New(port int) {
-	router := fasthttprouter.New()
-	router.GET("/api/values", values)
+	p := strconv.FormatInt(int64(port), 10)
+	addr := ":" + p
+	server := &fasthttp.Server{
+		Handler:                            values,
+		Name:                               "",
+		GetOnly:                            true,
+		LogAllErrors:                       false,
+		DisableHeaderNamesNormalizing:      true,
+		SleepWhenConcurrencyLimitsExceeded: 0,
+		NoDefaultServerHeader:              true,
+	}
 
-	p := fmt.Sprintf(":%v", port)
-	log.Fatal(fasthttp.ListenAndServe(p, router.Handler))
+	_ = server.ListenAndServe(addr)
 }
 
 func b2s(b []byte) string {
@@ -37,11 +38,11 @@ func b2s(b []byte) string {
 }
 
 func doJSONWrite(ctx *fasthttp.RequestCtx, code int, response interface{}) {
-	ctx.Response.Header.SetContentTypeBytes(strApplicationJSON)
+	ctx.Response.Header.SetContentType("application/json")
 	ctx.Response.SetStatusCode(code)
-	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+	var json = jsoniter.ConfigFastest
 	if bytes, err := json.Marshal(response); err == nil {
-		ctx.SetBody(bytes)
+		ctx.Response.SetBodyString(b2s(bytes))
 		return
 	}
 	ctx.Error("Error", fasthttp.StatusInternalServerError)
@@ -49,7 +50,7 @@ func doJSONWrite(ctx *fasthttp.RequestCtx, code int, response interface{}) {
 }
 
 func values(ctx *fasthttp.RequestCtx) {
-	response := &HashResponse{}
+	response := &hashResponse{}
 	n := ctx.QueryArgs().Peek("n")
 
 	var iterations int
@@ -74,7 +75,7 @@ func values(ctx *fasthttp.RequestCtx) {
 	}
 
 	base := base64.URLEncoding
-	buf := make([]byte, base.EncodedLen(len(sha[:])))
+	buf := make([]byte, base.EncodedLen(sha256.Size))
 	base.Encode(buf, sha[:])
 	result := b2s(buf)
 	response.Result = &result

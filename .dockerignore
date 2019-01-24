@@ -1,0 +1,8 @@
+.gopath
+.go-pkg-cache
+.git*
+vendor/
+.idea
+.DS_Store
+vendor
+*.iml

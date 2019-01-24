@@ -8,7 +8,8 @@ WORKDIR $SOURCE
 COPY . .
 ENV GO111MODULE=on \
     CGO_ENABLED=0
-RUN go build -o /src/bin/$APP_NAME ./cmd/challenge/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -a \
+    -installsuffix cgo -o /src/bin/$APP_NAME ./cmd/$APP_NAME/main.go
 
 FROM alpine:3.8
 ARG APP_NAME
