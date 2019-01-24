@@ -20,7 +20,8 @@ prepare:
 	go mod download
 run: rm
 	mkdir -p ${ASSETS_PATH_NAME}
-	docker run --name ${PROJECT_NAME} --rm ${ENV} -p 50000:50000 -d ${PROJECT_NAME}
+	docker run --name ${PROJECT_NAME} --rm ${ENV} \
+	${VOLUMES} -p 50000:50000 -d ${PROJECT_NAME}
 build: rm
 	docker build --no-cache -f ${DOCKER_FILE} -t ${PROJECT_NAME} .
 rm:

@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/base64"
 	"strconv"
+	"sync"
 	"unsafe"
 
 	"github.com/json-iterator/go"
@@ -17,6 +18,15 @@ type hashResponse struct {
 	Error  error   `json:"error,omitempty"`
 }
 
+var (
+	bytes []byte
+	pool  = &sync.Pool{
+		New: func() interface{} {
+			return &hashResponse{}
+		},
+	}
+)
+
 func New(port int) {
 	p := strconv.FormatInt(int64(port), 10)
 	addr := ":" + p
@@ -30,7 +40,16 @@ func New(port int) {
 		NoDefaultServerHeader:              true,
 	}
 
-	_ = server.ListenAndServe(addr)
+	var err error
+	bytes, err = files.BytesFromData()
+	if err != nil {
+		panic(err)
+	}
+
+	err = server.ListenAndServe(addr)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func b2s(b []byte) string {
@@ -50,7 +69,14 @@ func doJSONWrite(ctx *fasthttp.RequestCtx, code int, response interface{}) {
 }
 
 func values(ctx *fasthttp.RequestCtx) {
-	response := &hashResponse{}
+	response := pool.Get().(*hashResponse)
+
+	defer func() {
+		response.Result = nil
+		response.Error = nil
+		pool.Put(response)
+	}()
+
 	n := ctx.QueryArgs().Peek("n")
 
 	var iterations int
@@ -62,11 +88,6 @@ func values(ctx *fasthttp.RequestCtx) {
 			return
 		}
 		iterations = iterationsParse
-	}
-
-	bytes, err := files.BytesFromData()
-	if err != nil {
-		panic(err)
 	}
 
 	sha := sha256.Sum256(bytes)

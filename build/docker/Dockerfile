@@ -16,4 +16,5 @@ ARG APP_NAME
 ARG DOCKER_ABSOLUTE_PATH
 COPY --from=builder /src/bin/$APP_NAME /usr/local/bin/$APP_NAME
 ENV APP=$APP_NAME
+USER root
 ENTRYPOINT ["sh","-c", "$APP"]

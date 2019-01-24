@@ -29,7 +29,7 @@ func main() {
 		fileName = env
 	}
 
-	go files.CreateDumpData(assetsPath, fileName)
+	files.CreateDumpData(assetsPath, fileName)
 
 	api.New(port)
 }
